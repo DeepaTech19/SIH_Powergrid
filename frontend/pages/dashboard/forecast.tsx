@@ -116,17 +116,17 @@ export default function Forecast() {
         ? forecastsListRaw
         : (forecastsListRaw?.forecasts ?? []);
 
-      // Map backend response to frontend field names
-      const forecastsList = forecastsListRaw_.map((item: any) => ({
-        projectName: item.project_name,
-        estimatedCost: item.total,
-        actualCost: item.budget,
-        accuracy: item.accuracy,
-        status: item.status
+      // Correct mapping for new backend fields
+      const res = forecastsListRaw;
+      const formatted = (res?.data ?? forecastsListRaw_).map((f: any) => ({
+        projectName: f.projectName || "Unknown",
+        estimatedCost: f.estimatedCost ?? f.total ?? 0,
+        actualCost: f.actualCost ?? f.budget ?? 0,
+        status: f.status || "Active"
       }));
 
       setProjects(projectsList);
-      setForecasts(forecastsList);
+      setForecasts(formatted);
       setMaterials(materialsList);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -941,27 +941,24 @@ export default function Forecast() {
                             <th>Project Name</th>
                             <th>Estimated Cost</th>
                             <th>Actual Cost</th>
-                            <th>Accuracy</th>
                             <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {forecasts.map((f: any, idx: number) => (
                             <tr key={idx}>
-                              <td className="font-medium text-slate-800">{f.projectName || 'Unknown'}</td>
-                              <td className="font-bold text-purple-600">₹{f.estimatedCost?.toLocaleString('en-IN')}</td>
-                              <td className="font-bold text-green-600">₹{f.actualCost?.toLocaleString('en-IN')}</td>
-                              <td>
-                                {f.accuracy ? (
-                                  <span className={`badge font-bold ${f.accuracy >= 90 ? 'badge-success' : f.accuracy >= 75 ? 'badge-warning' : 'badge-danger'}`}>
-                                    {f.accuracy.toFixed(1)}%
-                                  </span>
-                                ) : <span className="text-slate-400">-</span>}
+                              <td className="py-4 px-6 font-semibold">{f.projectName}</td>
+
+                              <td className="py-4 px-6">
+                                ₹ {Number(f.estimatedCost).toLocaleString("en-IN")}
                               </td>
-                              <td>
-                                <span className={`badge ${f.status === 'Verified' ? 'badge-success' : 'badge-warning'}`}>
-                                  {f.status || 'Active'}
-                                </span>
+
+                              <td className="py-4 px-6">
+                                ₹ {Number(f.actualCost).toLocaleString("en-IN")}
+                              </td>
+
+                              <td className="py-4 px-6">
+                                <span className="badge badge-warning">{f.status}</span>
                               </td>
                             </tr>
                           ))}
