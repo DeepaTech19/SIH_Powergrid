@@ -28,11 +28,24 @@ export default function Projects() {
     setShowDetailsModal(true);
   };
 
-  const handleUseInForecast = (project: any) => {
-    // Store project data in sessionStorage to auto-fill forecast form
-    sessionStorage.setItem('forecastProjectData', JSON.stringify(project));
-    router.push('/dashboard/forecast');
+  const handleUseInForecast = (p: any) => {
+  const mapped = {
+    projectName: p.name,
+    projectCategoryMain: "Transmission",   // default because project has no category
+    projectType: p.project_type || "",
+    project_budget_price_in_lake: p.budget / 100000, // convert from crores or lakhs if needed
+    state: p.location,
+    region: p.region,
+    terrain: p.terrain || "Mixed",
+    transmission_line_length_km: p.line_length || 0,
+    distance_from_storage_unit: p.distance || 0,
+    start_date: p.start_date || "",
+    end_date: p.end_date || "",
   };
+
+  sessionStorage.setItem("forecastProjectData", JSON.stringify(mapped));
+  router.push("/dashboard/forecast");
+};
 
   const regionStates: { [key: string]: string[] } = {
     'North': ['Delhi NCR', 'Punjab', 'Haryana', 'Himachal Pradesh', 'Jammu & Kashmir', 'Uttarakhand', 'Uttar Pradesh', 'Rajasthan'],
@@ -74,41 +87,75 @@ export default function Projects() {
   }, [applyFilters]);
 
   const loadProjects = async () => {
-    try {
-      const data = await api.getProjectsSummary();
-      setProjects(data);
-      setFilteredProjects(data);
-    } catch (error) {
-      console.error('Failed to load projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const data = await api.getProjectsSummary();
+    setProjects(data);
+    setFilteredProjects(data);
+  } catch (error) {
+    console.error('Failed to load projects:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const resetFilters = () => {
-    setRegionFilter('');
-    setStatusFilter('');
-    setMinCompletion('');
-    setMaxCompletion('');
+    setRegionFilter("");
+    setStatusFilter("");
+    setMinCompletion("");
+    setMaxCompletion("");
     setFilteredProjects(projects);
   };
 
-  const handleCreateProject = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const projectName = formData.get('projectName');
-    const region = formData.get('region');
-    const state = formData.get('state');
-    const budget = formData.get('budget');
-    const lineLength = formData.get('lineLength');
-    const startDate = formData.get('startDate');
-    const endDate = formData.get('endDate');
-    
-    alert(`Project Created Successfully!\n\nProject: ${projectName}\nRegion: ${region}\nState: ${state}\nBudget: ₹${budget} Crores\nLine Length: ${lineLength} km\nDuration: ${startDate} to ${endDate}\n\nThe project has been added to your project list.`);
-    setShowCreateModal(false);
-    setProjectType('');
-    setSelectedRegion('');
-  };
+  const handleCreateProject = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  const formData = new FormData(e.currentTarget);
+
+  const projectName = formData.get('projectName') as string;
+  const region = formData.get('region') as string;
+  const state = formData.get('state') as string;
+  const budgetStr = formData.get('budget') as string;
+  const lineLengthStr = formData.get('lineLength') as string;
+  const startDate = formData.get('startDate') as string;
+  const endDate = formData.get('endDate') as string;
+
+  const budget = Number(budgetStr || 0);
+  const lineLength = Number(lineLengthStr || 0);
+
+  try {
+    await api.createProject({
+      projectName,
+      region,
+      state,
+      projectType,           // from state
+      budget: budget * 10000000,   // convert Crores → rupees-like value
+      lineLength,
+      startDate,
+      endDate,
+    });
+
+    await loadProjects();   // refresh list
+  } catch (err) {
+    console.error('Failed to create project:', err);
+  }
+
+  alert(
+    `Project Created Successfully!\n\n` +
+    `Project: ${projectName}\n` +
+    `Region: ${region}\n` +
+    `State: ${state}\n` +
+    `Budget: ₹${budget} Crores\n` +
+    `Line Length: ${lineLength} km\n` +
+    `Duration: ${startDate} to ${endDate}\n\n` +
+    `The project has been added to your project list.`
+  );
+
+  setShowCreateModal(false);
+  setProjectType('');
+  setSelectedRegion('');
+};
 
   if (loading) {
     return (
@@ -206,69 +253,73 @@ export default function Projects() {
 
             {/* Projects Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredProjects.map(p => (
-                <div key={p.id} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:shadow-lg transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-xs text-slate-500">{p.id}</span>
-                    <span className={`badge ${
-                      p.status === 'In Progress' ? 'badge-info' : 'badge-warning'
-                    }`}>
-                      {p.status}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-2">{p.name}</h3>
-                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                    <div>
-                      <p className="text-slate-500">Region</p>
-                      <p className="font-semibold text-slate-700">{p.region || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Location</p>
-                      <p className="font-semibold text-slate-700">{p.location}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Budget</p>
-                      <p className="font-semibold text-slate-700">₹{(p.budget / 10000000).toFixed(2)}Cr</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Project Type</p>
-                      <p className="font-semibold text-slate-700">{p.projectType || 'Both'}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Start Date</p>
-                      <p className="font-semibold text-slate-700">{p.startDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">End Date</p>
-                      <p className="font-semibold text-slate-700">{p.endDate}</p>
-                    </div>
-                  </div>
-                  <div className="mb-2">
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-slate-600">Progress</span>
-                      <span className="font-bold text-teal-600">{p.completion}%</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${p.completion}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={() => handleUseInForecast(p)}
-                      className="flex-1 btn btn-outline text-sm"
-                    >
-                      📊 Use in Forecast
-                    </button>
-                    <button 
-                      onClick={() => handleViewDetails(p)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      📋 View Details
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+  {filteredProjects.map((p) => (
+    <div key={p.id} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:shadow-lg transition-all">
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-mono text-xs text-slate-500">{p.id}</span>
+        <span
+          className={`badge ${
+            p.status === 'In Progress' ? 'badge-info' : 'badge-warning'
+          }`}
+        >
+          {p.status}
+        </span>
+      </div>
+      <h3 className="text-lg font-bold text-slate-800 mb-2">{p.name}</h3>
+      <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+        <div>
+          <p className="text-slate-500">Region</p>
+          <p className="font-semibold text-slate-700">{p.region || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Location</p>
+          <p className="font-semibold text-slate-700">{p.location}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Budget</p>
+          <p className="font-semibold text-slate-700">
+            ₹{(p.budget / 10000000).toFixed(2)}Cr
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-500">Project Type</p>
+          <p className="font-semibold text-slate-700">{p.project_type || 'Both'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Start Date</p>
+          <p className="font-semibold text-slate-700">{p.start_date}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">End Date</p>
+          <p className="font-semibold text-slate-700">{p.end_date}</p>
+        </div>
+      </div>
+      <div className="mb-2">
+        <div className="flex items-center justify-between text-sm mb-1">
+          <span className="text-slate-600">Progress</span>
+          <span className="font-bold text-teal-600">{p.completion}%</span>
+        </div>
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${p.completion}%` }}></div>
+        </div>
+      </div>
+      <div className="flex gap-2 mt-4">
+        <button
+          onClick={() => handleUseInForecast(p)}
+          className="flex-1 btn btn-outline text-sm"
+        >
+          📊 Use in Forecast
+        </button>
+        <button
+          onClick={() => handleViewDetails(p)}
+          className="btn btn-secondary text-sm"
+        >
+          📋 View Details
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
           </div>
         </div>
 
@@ -291,7 +342,7 @@ export default function Projects() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Project Name *</label>
-                      <input name="projectName" type="text" required className="w-full" placeholder="e.g., 400kV Transmission Line" />
+                     <input name="projectName" type="text" required className="w-full" placeholder="e.g., 400kV Transmission Line" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Region *</label>
@@ -322,13 +373,13 @@ export default function Projects() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Project Type *</label>
-                      <select
-                        name="projectType"
-                        required
-                        className="w-full"
-                        value={projectType}
-                        onChange={(e) => setProjectType(e.target.value)}
-                      >
+                     <select
+  name="projectType"
+  required
+  className="w-full"
+  value={projectType}
+  onChange={(e) => setProjectType(e.target.value)}
+>
                         <option value="">Select Project Type</option>
                         <option value="Tower">Tower Type</option>
                         <option value="Substation">Substation Type</option>
@@ -366,7 +417,7 @@ export default function Projects() {
                     )}
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Line Length (km) *</label>
-                      <input name="lineLength" type="number" required className="w-full" min="1" placeholder="250" />
+                     <input name="lineLength" type="number" required className="w-full" min="1" placeholder="250" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Start Date *</label>
@@ -461,15 +512,15 @@ export default function Projects() {
                   </div>
                   <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200 transform hover:scale-105 transition">
                     <p className="text-xs text-orange-600 font-semibold mb-1">PROJECT TYPE</p>
-                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.projectType || 'Both'}</p>
+                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.project_type || 'Both'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200 transform hover:scale-105 transition">
                     <p className="text-xs text-green-600 font-semibold mb-1">START DATE</p>
-                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.startDate}</p>
+                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.start_date}</p>
                   </div>
                   <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-xl border border-red-200 transform hover:scale-105 transition">
                     <p className="text-xs text-red-600 font-semibold mb-1">END DATE</p>
-                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.endDate}</p>
+                    <p className="text-lg font-bold text-slate-800">{selectedProjectDetails.end_date}</p>
                   </div>
                 </div>
 
@@ -492,13 +543,13 @@ export default function Projects() {
                         <div className="flex justify-between">
                           <span className="text-slate-600">Duration:</span>
                           <span className="font-semibold">
-                            {Math.ceil((new Date(selectedProjectDetails.endDate).getTime() - new Date(selectedProjectDetails.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                            {Math.ceil((new Date(selectedProjectDetails.end_date).getTime() - new Date(selectedProjectDetails.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-600">Days Elapsed:</span>
                           <span className="font-semibold">
-                            {Math.max(0, Math.ceil((new Date().getTime() - new Date(selectedProjectDetails.startDate).getTime()) / (1000 * 60 * 60 * 24)))} days
+                            {Math.max(0, Math.ceil((new Date().getTime() - new Date(selectedProjectDetails.start_date).getTime()) / (1000 * 60 * 60 * 24)))} days
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -638,19 +689,19 @@ export default function Projects() {
                   <p className="text-sm text-slate-600 mb-4">Based on project type and specifications, the following materials are forecasted:</p>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(selectedProjectDetails.projectType === 'Tower' || selectedProjectDetails.projectType === 'Both' || !selectedProjectDetails.projectType) && (
+                    {(selectedProjectDetails.project_type === 'Tower' || selectedProjectDetails.project_type === 'Both' || !selectedProjectDetails.project_type) && (
                       <>
                         <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-100 hover:shadow-md transition">
                           <p className="text-xs text-slate-600 mb-1">Towers</p>
-                          <p className="text-lg font-bold text-blue-600">~{Math.ceil((selectedProjectDetails.lineLength || 100) / 0.4)}</p>
+                          <p className="text-lg font-bold text-blue-600">~{Math.ceil((selectedProjectDetails.line_length || 100) / 0.4)}</p>
                         </div>
                         <div className="bg-white p-3 rounded-lg shadow-sm border border-green-100 hover:shadow-md transition">
                           <p className="text-xs text-slate-600 mb-1">Conductors (km)</p>
-                          <p className="text-lg font-bold text-green-600">~{Math.ceil((selectedProjectDetails.lineLength || 100) * 3)}</p>
+                          <p className="text-lg font-bold text-green-600">~{Math.ceil((selectedProjectDetails.line_length || 100) * 3)}</p>
                         </div>
                       </>
                     )}
-                    {(selectedProjectDetails.projectType === 'Substation' || selectedProjectDetails.projectType === 'Both' || !selectedProjectDetails.projectType) && (
+                    {(selectedProjectDetails.project_type === 'Substation' || selectedProjectDetails.project_type === 'Both' || !selectedProjectDetails.project_type) && (
                       <>
                         <div className="bg-white p-3 rounded-lg shadow-sm border border-purple-100 hover:shadow-md transition">
                           <p className="text-xs text-slate-600 mb-1">Circuit Breakers</p>

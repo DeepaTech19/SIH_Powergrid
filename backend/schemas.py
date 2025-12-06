@@ -35,19 +35,31 @@ class ProjectCreate(BaseModel):
     terrain: str | None = None
 
 
+# ---------- PROJECT ----------
+from pydantic import BaseModel
+from datetime import datetime
+
+
 class ProjectResponse(BaseModel):
     id: int
-    user_id: int
-    project_name: str
-    project_budget: float
-    location: str
-    category: str
-    tower_type: str | None
-    terrain: str | None
-    created_at: datetime
+    user_id: int | None = None
+    name: str | None = None
+    region: str | None = None
+    location: str | None = None
+    budget: float | None = None
+
+    # FIXED — correct alias mapping
+    lineLength: float | None = Field(None, alias="line_length")
+
+    project_type: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    status: str | None = None
+    completion: float | None = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 # ---------- MATERIAL ----------

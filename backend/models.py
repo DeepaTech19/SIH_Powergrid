@@ -20,16 +20,19 @@ class User(Base):
 # ---------- PROJECT ----------
 class Project(Base):
     __tablename__ = "projects"
-
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    project_name = Column(String, nullable=False)
-    project_budget = Column(Float, nullable=False)
+    name = Column(String, nullable=False)
+    region = Column(String, nullable=False)
     location = Column(String, nullable=False)
-    category = Column(String, nullable=False)
-    tower_type = Column(String, nullable=True)
-    terrain = Column(String, nullable=True)
+    budget = Column(Float, nullable=False)
+    line_length = Column(Float, nullable=True)
+    project_type = Column(String, nullable=True)
+    start_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
+    completion = Column(Float, nullable=False, default=0)
+    status = Column(String, nullable=False, default="Active")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="projects")

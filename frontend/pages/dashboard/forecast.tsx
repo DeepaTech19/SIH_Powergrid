@@ -70,38 +70,62 @@ export default function Forecast() {
     'North East': ['Assam', 'Arunachal Pradesh', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Tripura', 'Sikkim']
   };
 
-  useEffect(() => {
-    loadData();
 
-    const storedProjectData = sessionStorage.getItem('forecastProjectData');
-    if (storedProjectData) {
-      const project = JSON.parse(storedProjectData);
-      setSelectedProjectId(project.id);
-      setFormData({
-        projectName: project.name,
-        projectCategory: project.projectCategory || project.projectType || 'Transmission',
-        budget: (project.budget / 10000000).toFixed(2),
-        region: project.region || '',
-        location: project.location || '',
-        terrain: project.terrain || 'Mixed',
-        startDate: project.startDate || '',
-        endDate: project.endDate || '',
-        lineLength: project.lineLength || '',
-        distanceFromStorage: project.distanceFromStorage ? String(project.distanceFromStorage) : '',
-        towerType: project.towerType || '',
-        substationType: project.substationType || ''
-      });
-      if (project.towerType && project.substationType) {
-        setProjectType('Both');
-      } else if (project.towerType) {
-        setProjectType('Tower');
-      } else if (project.substationType) {
-        setProjectType('Substation');
-      }
-      sessionStorage.removeItem('forecastProjectData');
-      setActiveTab('new-forecast');
-    }
-  }, []);
+
+ useEffect(() => {
+  loadData();
+
+  const raw = sessionStorage.getItem("forecastProjectData");
+  if (!raw) return;
+
+  const p = JSON.parse(raw);
+
+  // Save project ID (not always present)
+  setSelectedProjectId(p.id || "");
+
+  // --- FILL FORM DATA CORRECTLY ---
+  setFormData({
+    projectName: p.projectName || "",
+
+    // Category is always Transmission in your system
+    projectCategory: "Transmission",
+
+    budget: p.project_budget_price_in_lake
+      ? (p.project_budget_price_in_lake).toFixed(2)
+      : "",
+
+    region: p.region || "",
+    location: p.state || "",
+
+    terrain: p.terrain || "Mixed",
+
+    startDate: p.start_date || "",
+    endDate: p.end_date || "",
+
+    lineLength: p.transmission_line_length_km
+      ? String(p.transmission_line_length_km)
+      : "",
+
+    distanceFromStorage: p.distance_from_storage_unit
+      ? String(p.distance_from_storage_unit)
+      : "",
+
+    // tower/substation types are NOT coming from backend — keep blank
+    towerType: "",
+    substationType: ""
+  });
+
+  // --- Set UI project type dropdown ---
+  if (p.projectType === "Tower") setProjectType("Tower");
+  else if (p.projectType === "Substation") setProjectType("Substation");
+  else if (p.projectType === "Both") setProjectType("Both");
+  else setProjectType("");
+
+  // Cleanup & switch tab
+  sessionStorage.removeItem("forecastProjectData");
+  setActiveTab("new-forecast");
+}, []);
+
 
   const loadData = async () => {
     try {

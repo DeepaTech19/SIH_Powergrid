@@ -93,27 +93,10 @@ class API {
   }
 
   async createProject(projectData: any) {
-    // frontend expects created project back with id
-    try {
-      const payload = {
-        ...projectData,
-        user_id: projectData.user_id ?? projectData.userId ?? 1,
-      };
-      return await fetchJson(`${BASE_URL}/projects/create`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (err) {
-      // fallback to local create
-      const newProject = {
-        id: `PRJ${String(localProjectsData.length + 1).padStart(3, '0')}`,
-        ...projectData,
-        status: 'Planning',
-        completion: 0,
-      };
-      localProjectsData.push(newProject);
-      return newProject;
-    }
+    return await fetchJson(`${BASE_URL}/projects/create`, {
+      method: 'POST',
+      body: JSON.stringify(projectData),
+    });
   }
 
   async saveForecastAndPredict(formPayload: any) {
@@ -259,3 +242,21 @@ class API {
 }
 
 export const api = new API();
+
+export async function createProject(data: any) {
+  const API_BASE = BASE_URL;
+  return fetch(`${API_BASE}/projects/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      projectName: data.projectName,
+      region: data.region,
+      state: data.state,
+      budget: data.budget,
+      lineLength: data.lineLength,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      projectType: data.projectType
+    }),
+  }).then(res => res.json()).then(response => response.data || response);
+}
